@@ -17,7 +17,6 @@ class ViewAllSkinsHandler(BaseHandler):
         try:
             args = context.args
 
-            # Чтение файла с персонажами
             with open(SKINS_FILE, "r", encoding="utf-8") as file:
                 lines = file.readlines()
 
@@ -27,32 +26,30 @@ class ViewAllSkinsHandler(BaseHandler):
 
             skins = []
             for line in lines:
-                name, date = line.strip().split(",")
+                name, date, skin_name = line.strip().split(",", 2)
                 days_passed = (datetime.now() - datetime.strptime(date, "%Y-%m-%d")).days
-                skins.append((name, date, days_passed))
+                skins.append((name, skin_name, date, days_passed))
 
-            # Сортировка на основе аргументов
             sort_description = "по порядку из файла"
             if args:
                 sort_option = args[0].lower()
                 if sort_option == "name":
-                    skins.sort(key=lambda x: x[0])  # Сортировка по имени
+                    skins.sort(key=lambda x: x[0])
                     sort_description = "в алфавитном порядке"
                 elif sort_option == "new":
-                    skins.sort(key=lambda x: datetime.strptime(x[1], "%Y-%m-%d"), reverse=True)  # Новые даты
+                    skins.sort(key=lambda x: datetime.strptime(x[1], "%Y-%m-%d"), reverse=True)
                     sort_description = "по самым новым (Недавно вышел скин)"
                 elif sort_option == "old":
-                    skins.sort(key=lambda x: datetime.strptime(x[1], "%Y-%m-%d"))  # Старые даты
-                    sort_description = "по самым старым (Дольше всего не было скина)"
+                    skins.sort(key=lambda x: datetime.strptime(x[1], "%Y-%m-%d"))
+                    sort_description = "по самым старым (Долго не было скина)"
                 else:
                     raise ValueError("Некорректный параметр сортировки.")
 
-            # Формирование заголовка
             header = f"Список персонажей ({len(skins)}):\nСортировка {sort_description}.\n\n"
 
-            # Формирование тела списка с нумерацией
             response = header + "\n".join(
-                [f"{i + 1}. {name}: {date} (прошло {days} дней)" for i, (name, date, days) in enumerate(skins)]
+                [f"{i + 1}. {name}: {date} ({skin_name}) (прошло {days} дней)" for i, (name, date, skin_name, days) in
+                 enumerate(skins)]
             )
             await update.message.reply_text(response)
         except ValueError:
