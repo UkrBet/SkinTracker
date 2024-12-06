@@ -65,10 +65,10 @@ class UpdateLastSkinHandler(BaseHandler):
                 await update.message.reply_text(
                     f"Дата последнего скина для {character_name} обновлена на {new_date} с новым скином: {skin_name}.")
             else:
-                await update.message.reply_text(f"Персонаж {character_name} не найден в базе данных.")
+                await update.message.reply_text(f"Бравлер {character_name} не найден в базе данных.")
         except ValueError:
             await update.message.reply_text(
                 "Используйте формат команды: "
-                "/update <имя_персонажа>, <дата (ГГГГ-ММ-ДД) | today/сегодня>, <название_скина>"
+                "/update <имя_бравлера>, <дата (ГГГГ-ММ-ДД) | today/сегодня>, <название_скина>"
                 "\nВсе аргументы должны быть разделены запятыми!"
             )

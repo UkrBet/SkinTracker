@@ -6,7 +6,7 @@ from telegram.ext import CommandHandler, ContextTypes
 from config.config import SKINS_FILE
 from handlers.base_handler import BaseHandler
 
-MY_USER_ID = 646771905  # Замените на свой ID
+MY_USER_ID = 646771905
 
 
 class AddNewBrawlerHandler(BaseHandler):
@@ -23,31 +23,38 @@ class AddNewBrawlerHandler(BaseHandler):
             return
 
         try:
+            # Получаем все аргументы команды
             args = context.args
-            if len(args) < 1 or len(args) > 2:
+            if len(args) < 1 or len(args) > 3:
                 raise ValueError
 
+            # Объединяем все аргументы в один строковый ввод и разбиваем по запятой
             input_data = " ".join(args)
-            parts = input_data.split(",")
+            parts = input_data.split(",")  # Разделяем по запятой
 
-            if len(parts) < 1:
+            # Проверка на минимум два элемента
+            if len(parts) < 2:
                 raise ValueError
 
+            # Убираем пробелы в начале и в конце
             character_name = parts[0].strip()
             last_date = parts[1].strip() if len(parts) > 1 else "today"
+            skin_name = parts[2].strip() if len(parts) > 2 else "Без названия"
 
+            # Проверка на корректность даты
             if last_date.lower() in ["today", "сегодня"]:
                 last_date = datetime.now().strftime("%Y-%m-%d")
 
+            # Открываем файл и добавляем персонажа
             with open(SKINS_FILE, "a", encoding="utf-8") as file:
-                file.write(f"{character_name},{last_date},Без названия\n")
+                file.write(f"{character_name},{last_date},{skin_name}\n")
 
             await update.message.reply_text(
-                f"Добавлен новый персонаж: {character_name} с датой {last_date}."
+                f"Добавлен новый бравлер: {character_name} с датой {last_date}. Скин: {skin_name}."
             )
         except ValueError:
             await update.message.reply_text(
                 "Используйте формат команды: "
-                "/add <имя_персонажа>, <дата (ГГГГ-ММ-ДД) | today/сегодня>, <название_скина>"
+                "/add <имя_бравлера>, <дата (ГГГГ-ММ-ДД) | today/сегодня>, <название_скина>"
                 "\nВсе аргументы должны быть разделены запятыми!"
             )
