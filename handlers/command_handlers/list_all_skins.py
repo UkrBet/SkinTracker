@@ -73,7 +73,6 @@ class ListSkinsHandler(BaseHandler):
                  for i, (name, skin_name, date, days) in enumerate(skins)]
             )
 
-            # Додавання футера до списку
             footer = "\n\nКонец списка."
             response += footer
 

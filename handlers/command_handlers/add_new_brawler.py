@@ -18,7 +18,8 @@ class AddNewBrawlerHandler(BaseHandler):
     async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.message.from_user.id != MY_USER_ID:
             await update.message.reply_text(
-                "Ты не имеешь доступа к этому боту так как ты смертный. Напиши /start чтобы узнать что могут смертные"
+                "Ты не имеешь доступа к этому боту так как ты смертный - твои возможности ограничены. "
+                "Напиши /start чтобы узнать что могут смертные"
             )
             return
 
