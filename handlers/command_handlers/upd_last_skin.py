@@ -18,7 +18,8 @@ class UpdateLastSkinHandler(BaseHandler):
     async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.message.from_user.id != MY_USER_ID:
             await update.message.reply_text(
-                "Ты не имеешь доступа к этому боту. Ты можешь только смотреть список по команде /list [name|new|old]")
+                "Ты не имеешь доступа к этому боту так как ты смертный. Напиши /start чтобы узнать что могут смертные"
+            )
             return
 
         try:
@@ -44,8 +45,7 @@ class UpdateLastSkinHandler(BaseHandler):
                     new_date = datetime.strptime(date_input, "%Y-%m-%d").strftime("%Y-%m-%d")
                 except ValueError:
                     await update.message.reply_text(
-                        "Некорректный формат даты. Используйте формат: "
-                        "ГГГГ-ММ-ДД или 'today'/'сегодня' для текущей даты.")
+                        "Некорректный формат даты. Используйте формат: ГГГГ-ММ-ДД")
                     return
 
             updated = False
@@ -69,6 +69,6 @@ class UpdateLastSkinHandler(BaseHandler):
         except ValueError:
             await update.message.reply_text(
                 "Используйте формат команды: "
-                "/update <имя_бравлера>, <дата (ГГГГ-ММ-ДД) | today/сегодня>, <название_скина>"
+                "/update <имя_бравлера>, <дата (ГГГГ-ММ-ДД), <название_скина>"
                 "\nВсе аргументы должны быть разделены запятыми!"
             )
