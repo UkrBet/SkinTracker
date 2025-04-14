@@ -16,7 +16,7 @@ class ViewSingleSkinHandler(BaseHandler):
             args = context.args
             if not args or len(args) != 1:
                 await update.message.reply_text(
-                    "Вкажіть ім'я персонажа у форматі: /view <ім'я_персонажа>"
+                    "Укажите имя бравлера в формате: /view <имя_бравлера>"
                 )
                 return
 
@@ -33,14 +33,14 @@ class ViewSingleSkinHandler(BaseHandler):
                     if name.lower() == character_name.lower():
                         days_passed = (datetime.now() - datetime.strptime(date, "%Y-%m-%d")).days
                         await update.message.reply_text(
-                            f"Персонаж: {name}\n"
-                            f"Останній скин: {skin_name}\n"
-                            f"Дата: {date} (пройшло {days_passed} днів)"
+                            f"Бравлер: {name}\n"
+                            f"Последний скин: {skin_name}\n"
+                            f"Дата: {date} (прошло {days_passed} дней)"
                         )
                         return
                 except ValueError:
                     continue
 
-            await update.message.reply_text(f"Персонаж '{character_name}' не знайдений.")
+            await update.message.reply_text(f"Бравлер '{character_name}' не найден.")
         except Exception as e:
-            await update.message.reply_text(f"Сталася помилка: {str(e)}")
+            await update.message.reply_text(f"Произошла ошибка: {str(e)}")

@@ -6,3 +6,4 @@ load_dotenv()
 
 TELEGRAM_TOKEN_BOT = os.getenv('TELEGRAM_TOKEN_BOT')
 SKINS_FILE = "Skins.txt"
+ADMIN_ID = os.getenv('ADMIN_ID')

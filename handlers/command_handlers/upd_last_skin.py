@@ -3,10 +3,8 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from config.config import SKINS_FILE
+from config.config import SKINS_FILE, ADMIN_ID
 from handlers.base_handler import BaseHandler
-
-MY_USER_ID = 646771905
 
 
 class UpdateLastSkinHandler(BaseHandler):
@@ -16,9 +14,9 @@ class UpdateLastSkinHandler(BaseHandler):
 
     @staticmethod
     async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.message.from_user.id != MY_USER_ID:
+        if update.message.from_user.id != ADMIN_ID:
             await update.message.reply_text(
-                "Ты не имеешь доступа к этому боту так как ты смертный - твои возможности ограничены. "
+                "Ты не имеешь доступа к этому боту так как ты смертный - твои возможности ограничены.\n"
                 "Напиши /start чтобы узнать что могут смертные"
             )
             return
