@@ -1,155 +1,163 @@
-from urllib.parse import urlparse
-import psycopg2
-from config.config import DATABASE_URL
+# database.py
 import logging
+import sqlite3
 
 logger = logging.getLogger(__name__)
+DATABASE_NAME = 'brawl_stars_bot.db'
 
 
 def get_connection():
-    """Повертає об'єкт підключення до бази даних PostgreSQL."""
-    if not DATABASE_URL:
-        raise ValueError("Змінна конфігурації DATABASE_URL не встановлена.")
-    parsed_url = urlparse(DATABASE_URL)
-    logger.info(f"Спроба підключення до бази даних: host={parsed_url.hostname}, port={parsed_url.port}, user={parsed_url.username}, database={parsed_url.path[1:]}")
-    conn = psycopg2.connect(
-        host=parsed_url.hostname,
-        port=parsed_url.port,
-        user=parsed_url.username,
-        password=parsed_url.password,
-        database=parsed_url.path[1:]
-    )
-    logger.info("Підключення до бази даних успішне.")
+    """Повертає об'єкт підключення до бази даних SQLite."""
+    conn = sqlite3.connect(DATABASE_NAME)
     return conn
 
 
 def close_connection(connection):
-    """Закриває підключення до бази даних."""
+    """Закриває підключення до бази даних SQLite."""
     if connection:
         connection.close()
 
 
 def create_tables():
-    """Створює таблиці в базі даних, якщо вони не існують."""
+    """Створює необхідні таблиці, якщо вони не існують."""
     conn = None
     try:
-        logger.info("Початок процесу створення таблиць.")
         conn = get_connection()
-        cur = conn.cursor()
-        logger.info("Курсор бази даних створено.")
+        cursor = conn.cursor()
 
-        logger.info("Спроба створити таблицю 'admins'.")
-        cur.execute("""
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS admins (
-                user_id BIGINT PRIMARY KEY
+                user_id INTEGER PRIMARY KEY
             )
-        """)
-        logger.info("Таблиця 'admins' створена або вже існує.")
+        ''')
 
-        logger.info("Спроба створити таблицю 'skins'.")
-        cur.execute("""
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS skins (
                 character_name TEXT PRIMARY KEY,
-                last_date DATE,
+                last_date TEXT,
                 skin_name TEXT
             )
-        """)
-        logger.info("Таблиця 'skins' створена або вже існує.")
+        ''')
 
         conn.commit()
-        logger.info("Зміни збережено.")
         logger.info("Таблиці 'admins' та 'skins' успішно створено (або вже існували).")
 
-    except psycopg2.Error as e:
+    except sqlite3.Error as e:
         logger.error(f"Помилка при створенні таблиць: {e}")
         if conn:
             conn.rollback()
-            logger.info("Виконано відкат транзакції через помилку.")
     finally:
         if conn:
             close_connection(conn)
-            logger.info("Підключення до бази даних закрито.")
 
 
 def add_admin(user_id: int):
     """Додає нового адміністратора до бази даних."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
     try:
-        cursor.execute("INSERT INTO admins (user_id) VALUES (%s)", (user_id,))
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR IGNORE INTO admins (user_id) VALUES (?)", (user_id,))
         conn.commit()
         return True
-    except psycopg2.errors.UniqueViolation:
-        conn.rollback()
+    except sqlite3.Error as e:
+        logger.error(f"Помилка при додаванні адміністратора: {e}")
+        if conn:
+            conn.rollback()
         return False  # Адміністратор вже існує
     finally:
-        close_connection(conn)
+        if conn:
+            close_connection(conn)
 
 
 def get_admins_from_db():
     """Отримує список всіх адміністраторів з бази даних."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT user_id FROM admins")
-    admins = [row[0] for row in cursor.fetchall()]
-    close_connection(conn)
-    return admins
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id FROM admins")
+        admins = [row[0] for row in cursor.fetchall()]
+        return admins
+    except sqlite3.Error as e:
+        logger.error(f"Помилка при отриманні адміністраторів: {e}")
+        return []
+    finally:
+        if conn:
+            close_connection(conn)
 
 
 def add_skin(character_name: str, last_date: str, skin_name: str):
     """Додає інформацію про нового бравлера та його скін до бази даних."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
     try:
-        cursor.execute("INSERT INTO skins (character_name, last_date, skin_name) VALUES (%s, %s, %s)",
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR IGNORE INTO skins (character_name, last_date, skin_name) VALUES (?, ?, ?)",
                        (character_name, last_date, skin_name))
         conn.commit()
         return True
-    except psycopg2.errors.UniqueViolation:
-        conn.rollback()
+    except sqlite3.Error as e:
+        logger.error(f"Помилка при додаванні скіна: {e}")
+        if conn:
+            conn.rollback()
         return False  # Бравлер вже існує
     finally:
-        close_connection(conn)
+        if conn:
+            close_connection(conn)
 
 
 def update_skin(character_name: str, last_date: str, skin_name: str):
     """Оновлює інформацію про останній скін бравлера."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE skins SET last_date=%s, skin_name=%s WHERE character_name=%s",
-                   (last_date, skin_name, character_name))
-    conn.commit()
-    close_connection(conn)
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE skins SET last_date=?, skin_name=? WHERE character_name=?",
+                       (last_date, skin_name, character_name))
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f"Помилка при оновленні скіна: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            close_connection(conn)
 
 
 def get_skin(character_name: str):
     """Отримує інформацію про скін конкретного бравлера."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT last_date, skin_name FROM skins WHERE character_name=%s", (character_name,))
-    result = cursor.fetchone()
-    close_connection(conn)
-    return result
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT last_date, skin_name FROM skins WHERE character_name=?", (character_name,))
+        result = cursor.fetchone()
+        if result:
+            return result[0], result[1]  # Повертаємо кортеж
+        return None
+    except sqlite3.Error as e:
+        logger.error(f"Помилка при отриманні скіна: {e}")
+        return None
+    finally:
+        if conn:
+            close_connection(conn)
 
 
 def get_all_skins():
-    """Отримує інформацію про всіх бравлерів та їхні скіни."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT character_name, last_date, skin_name FROM skins")
-    skins = cursor.fetchall()
-    close_connection(conn)
-    return skins
+    """Отримує інформацію про всі скіни з бази даних."""
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT character_name, last_date, skin_name FROM skins")
+        return cursor.fetchall()
+    except sqlite3.Error as e:
+        logger.error(f"Помилка при отриманні всіх скінів: {e}")
+        return []
+    finally:
+        if conn:
+            close_connection(conn)
 
 
-def delete_skin(character_name: str):
-    """Видаляє інформацію про бравлера з бази даних."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM skins WHERE character_name=%s", (character_name,))
-    conn.commit()
-    close_connection(conn)
-
-
-# Виклик для створення таблиць при першому запуску бота
-create_tables()
+create_tables()  # Викликаємо створення таблиць при імпорті
