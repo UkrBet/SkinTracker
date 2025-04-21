@@ -30,26 +30,45 @@ def close_connection(connection):
 
 
 def create_tables():
-    """Створює необхідні таблиці, якщо вони не існують."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    """Створює таблиці в базі даних, якщо вони не існують."""
+    conn = None
+    try:
+        logger.info("Початок процесу створення таблиць.")
+        conn = get_connection()
+        cur = conn.cursor()
+        logger.info("Курсор бази даних створено.")
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS admins (
-            user_id BIGINT PRIMARY KEY
-        )
-    ''')
+        logger.info("Спроба створити таблицю 'admins'.")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS admins (
+                user_id BIGINT PRIMARY KEY
+            )
+        """)
+        logger.info("Таблиця 'admins' створена або вже існує.")
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS skins (
-            character_name TEXT PRIMARY KEY,
-            last_date DATE,
-            skin_name TEXT
-        )
-    ''')
+        logger.info("Спроба створити таблицю 'skins'.")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS skins (
+                character_name TEXT PRIMARY KEY,
+                last_date DATE,
+                skin_name TEXT
+            )
+        """)
+        logger.info("Таблиця 'skins' створена або вже існує.")
 
-    conn.commit()
-    close_connection(conn)
+        conn.commit()
+        logger.info("Зміни збережено.")
+        logger.info("Таблиці 'admins' та 'skins' успішно створено (або вже існували).")
+
+    except psycopg2.Error as e:
+        logger.error(f"Помилка при створенні таблиць: {e}")
+        if conn:
+            conn.rollback()
+            logger.info("Виконано відкат транзакції через помилку.")
+    finally:
+        if conn:
+            close_connection(conn)
+            logger.info("Підключення до бази даних закрито.")
 
 
 def add_admin(user_id: int):
