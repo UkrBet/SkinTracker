@@ -3,7 +3,7 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from config.config import SKINS_FILE, ADMIN_ID
+from database import update_skin, get_skin
 from handlers.base_handler import BaseHandler
 
 
@@ -14,60 +14,52 @@ class UpdateLastSkinHandler(BaseHandler):
 
     @staticmethod
     async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.message.from_user.id != ADMIN_ID:
+        if not BaseHandler.is_admin(update.effective_user.id):
             await update.message.reply_text(
-                "Ты не имеешь доступа к этому боту так как ты смертный - твои возможности ограничены.\n"
-                "Напиши /start чтобы узнать что могут смертные"
+                "Ти не маєш доступу до цього боту так як ти смертний - твої можливості обмежені.\n"
+                "Напиши /start щоб дізнатися що можуть смертні"
             )
             return
 
         try:
             args = context.args
-
             if len(args) < 1:
                 raise ValueError
 
             input_data = " ".join(args)
-            parts = input_data.split(",")
+            parts = [part.strip() for part in input_data.split(",")]
 
             if len(parts) < 2:
                 raise ValueError
 
-            character_name = parts[0].strip()
-            date_input = parts[1].strip()
-            skin_name = parts[2].strip() if len(parts) > 2 else "Без названия"
+            character_name = parts[0]
+            date_input = parts[1]
+            skin_name = parts[2] if len(parts) > 2 else "Без назви"
 
             if date_input.lower() in ["today", "сегодня"]:
                 new_date = datetime.now().strftime("%Y-%m-%d")
             else:
                 try:
-                    new_date = datetime.strptime(date_input, "%Y-%m-%d").strftime("%Y-%m-%d")
+                    datetime.strptime(date_input, "%Y-%m-%d")
+                    new_date = date_input
                 except ValueError:
                     await update.message.reply_text(
-                        "Некорректный формат даты. Используйте формат: ГГГГ-ММ-ДД")
+                        "Некоректний формат дати. Використовуйте формат: РРРР-ММ-ДД")
                     return
 
-            updated = False
-            with open(SKINS_FILE, "r", encoding="utf-8") as file:
-                lines = file.readlines()
-
-            with open(SKINS_FILE, "w", encoding="utf-8") as file:
-                for line in lines:
-                    name, date, skin = line.strip().split(",", 2)
-                    if name == character_name:
-                        file.write(f"{name},{new_date},{skin_name}\n")
-                        updated = True
-                    else:
-                        file.write(line)
-
-            if updated:
+            existing_skin_data = get_skin(character_name)
+            if existing_skin_data:
+                update_skin(character_name, new_date, skin_name)
                 await update.message.reply_text(
-                    f"Дата последнего скина для {character_name} обновлена на {new_date} с новым скином: {skin_name}.")
+                    f"Дата останнього скіна для {character_name} оновлена на {new_date}. Скін: {skin_name}.")
             else:
-                await update.message.reply_text(f"Бравлер {character_name} не найден в базе данных.")
+                await update.message.reply_text(f"Бравлер {character_name} не знайдений в базі даних.")
+
         except ValueError:
             await update.message.reply_text(
-                "Используйте формат команды: "
-                "/update <имя_бравлера>, <дата (ГГГГ-ММ-ДД), <название_скина>"
-                "\nВсе аргументы должны быть разделены запятыми!"
+                "Використовуйте формат команди: "
+                "/upd <ім'я_бравлера>, <дата (РРРР-ММ-ДД)>, <назва_скіна>"
+                "\nВсі аргументи повинні бути розділені комами!"
             )
+        except Exception as e:
+            await update.message.reply_text(f"Произошла ошибка: {e}")

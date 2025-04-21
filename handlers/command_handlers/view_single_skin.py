@@ -1,7 +1,9 @@
 from datetime import datetime
+
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
-from config.config import SKINS_FILE
+
+from database import get_skin
 from handlers.base_handler import BaseHandler
 
 
@@ -16,31 +18,30 @@ class ViewSingleSkinHandler(BaseHandler):
             args = context.args
             if not args or len(args) != 1:
                 await update.message.reply_text(
-                    "Укажите имя бравлера в формате: /view <имя_бравлера>"
+                    "Вкажіть ім'я бравлера у форматі: /view <ім'я_бравлера>"
                 )
                 return
 
             character_name = args[0].strip()
+            skin_data = get_skin(character_name)
 
-            # Читання файлу з персонажами
-            with open(SKINS_FILE, "r", encoding="utf-8") as file:
-                lines = file.readlines()
-
-            # Пошук персонажа
-            for line in lines:
+            if skin_data:
+                last_date_str, skin_name = skin_data
                 try:
-                    name, date, skin_name = line.strip().split(",")
-                    if name.lower() == character_name.lower():
-                        days_passed = (datetime.now() - datetime.strptime(date, "%Y-%m-%d")).days
-                        await update.message.reply_text(
-                            f"Бравлер: {name}\n"
-                            f"Последний скин: {skin_name}\n"
-                            f"Дата: {date} (прошло {days_passed} дней)"
-                        )
-                        return
+                    days_passed = (datetime.now() - datetime.strptime(last_date_str, "%Y-%m-%d")).days
+                    await update.message.reply_text(
+                        f"Бравлер: {character_name}\n"
+                        f"Останній скін: {skin_name}\n"
+                        f"Дата: {last_date_str} (пройшло {days_passed} днів)"
+                    )
                 except ValueError:
-                    continue
+                    await update.message.reply_text(
+                        f"Бравлер: {character_name}\n"
+                        f"Останній скін: {skin_name}\n"
+                        f"Дата: {last_date_str} (некоректний формат)"
+                    )
+            else:
+                await update.message.reply_text(f"Бравлер '{character_name}' не знайдений.")
 
-            await update.message.reply_text(f"Бравлер '{character_name}' не найден.")
         except Exception as e:
             await update.message.reply_text(f"Произошла ошибка: {str(e)}")

@@ -1,91 +1,104 @@
 from datetime import datetime
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
 
-from config.config import SKINS_FILE
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes, CallbackQueryHandler
+
+from database import get_all_skins
 from handlers.base_handler import BaseHandler
+
+ITEMS_PER_PAGE = 10
 
 
 class ListSkinsHandler(BaseHandler):
     @staticmethod
     def register(app):
         app.add_handler(CommandHandler("list", ListSkinsHandler.handle))
+        app.add_handler(CallbackQueryHandler(ListSkinsHandler.handle_page, pattern=r'^list_page_(\d+)$'))
 
     @staticmethod
     async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        try:
-            args = context.args
+        skins_data_tuples = get_all_skins()
+        skins_data = []
+        for name, date_str, skin_name in skins_data_tuples:
+            try:
+                days_passed = (datetime.now() - datetime.strptime(date_str, "%Y-%m-%d")).days
+            except ValueError:
+                days_passed = "Некоректна дата"
+            skins_data.append((name, skin_name, date_str, days_passed))
 
-            with open(SKINS_FILE, "r", encoding="utf-8") as file:
-                lines = file.readlines()
+        sort_description = "за порядком з бази даних"
 
-            if not lines:
-                await update.message.reply_text("Список персонажей пуст.")
+        args = context.args
+        if args:
+            sort_option = args[0].lower()
+            if sort_option == "name":
+                skins_data.sort(key=lambda x: x[0])
+                sort_description = "в алфавітному порядку"
+            elif sort_option == "new":
+                skins_data.sort(key=lambda x: datetime.strptime(x[2], "%Y-%m-%d"), reverse=True)
+                sort_description = "по найновішим (Нещодавно вийшов скін)"
+            elif sort_option == "old":
+                skins_data.sort(key=lambda x: datetime.strptime(x[2], "%Y-%m-%d"))
+                sort_description = "по найстарішим (Давно не було скіна)"
+            elif args[0].isdigit():
+                pass  # Кількість елементів буде оброблена пізніше
+            else:
+                await update.message.reply_text("Некоректний параметр сортування.")
                 return
 
-            skins = []
-            for line in lines:
-                parts = line.strip().split(",", 2)
-                if len(parts) == 3:
-                    name, date, skin_name = parts
-                    try:
-                        days_passed = (datetime.now() - datetime.strptime(date, "%Y-%m-%d")).days
-                    except ValueError:
-                        days_passed = "Некорректная дата"
-                    skins.append((name, skin_name, date, days_passed))
+        context.user_data['all_skins'] = skins_data
+        context.user_data['sort_description'] = sort_description
 
-            sort_description = "по порядку из файла"
+        await ListSkinsHandler.show_page(update, context, page=0)
 
-            # Обработка параметров сортировки и количества
-            count = None
-            if args:
-                if args[0].isdigit():
-                    count = int(args[0])
-                else:
-                    sort_option = args[0].lower()
+    @staticmethod
+    async def show_page(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int):
+        skins_data = context.user_data.get('all_skins')
+        sort_description = context.user_data.get('sort_description', "за порядком з бази даних")
 
-                    if sort_option == "name":
-                        skins.sort(key=lambda x: x[0])
-                        sort_description = "в алфавитном порядке"
-                    elif sort_option == "new":
-                        skins.sort(key=lambda x: datetime.strptime(x[2], "%Y-%m-%d"), reverse=True)
-                        sort_description = "по самым новым (Недавно вышел скин)"
-                    elif sort_option == "old":
-                        skins.sort(key=lambda x: datetime.strptime(x[2], "%Y-%m-%d"))
-                        sort_description = "по самым старым (Долго не было скина)"
-                    else:
-                        raise ValueError("Некорректный параметр сортировки.")
+        if not skins_data:
+            await update.message.reply_text("Список персонажів пустий.")
+            return
 
-                    # Проверка на количество строк
-                    if len(args) > 1 and args[1].isdigit():
-                        count = int(args[1])
-                    elif len(args) > 1:
-                        await update.message.reply_text("Укажите корректное количество строк.")
-                        return
-            # Обрезка до указанного количества строк
-            if count is not None:
-                skins = skins[:count]
+        start_index = page * ITEMS_PER_PAGE
+        end_index = start_index + ITEMS_PER_PAGE
+        current_page_skins = skins_data[start_index:end_index]
 
-            header = f"Список персонажей ({len(skins)}):\nСортировка {sort_description}.\n\n"
+        if not current_page_skins:
+            if page > 0:
+                await ListSkinsHandler.show_page(update, context, page - 1)
+            else:
+                await update.message.reply_text("Список персонажів пустий.")
+            return
 
-            response = header + "\n".join(
-                [f"{i + 1}. {name}: {skin_name} ({date}) (прошло {days} дней)"
-                 for i, (name, skin_name, date, days) in enumerate(skins)]
-            )
+        response_lines = [
+            f"{i + 1 + start_index}. {name}: {skin_name} ({date}) (пройшло {days} днів)"
+            for i, (name, skin_name, date, days) in enumerate(current_page_skins)
+        ]
 
-            footer = "\n\nКонец списка."
-            response += footer
+        header = f"Список персонажів ({len(skins_data)}):\nСортування {sort_description}.\n\n"
+        response = header + "\n".join(response_lines)
 
-            await update.message.reply_text(response)
+        keyboard = []
+        if page > 0:
+            keyboard.append(InlineKeyboardButton("⬅️ Назад", callback_data=f'list_page_{page - 1}'))
+        if end_index < len(skins_data):
+            keyboard.append(InlineKeyboardButton("➡️ Вперед", callback_data=f'list_page_{page + 1}'))
 
-        except ValueError:
-            await update.message.reply_text(
-                "Используйте команду в формате: /list [name|new|old] [количество]\n"
-                "- name: сортировка по имени\n"
-                "- new: сортировка по новым датам\n"
-                "- old: сортировка по старым датам\n"
-                "Можно также указать только количество строк, например: /list 5"
-            )
-        except Exception as e:
-            print(f"Произошла ошибка: {e}")
-            await update.message.reply_text(f"Произошла ошибка: {e}")
+        if keyboard:
+            reply_markup = InlineKeyboardMarkup([keyboard])
+        else:
+            reply_markup = None
+
+        if update.callback_query:
+            await update.callback_query.edit_message_text(text=response, reply_markup=reply_markup)
+        else:
+            await update.message.reply_text(text=response, reply_markup=reply_markup)
+
+    @staticmethod
+    async def handle_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
+        page = int(query.data.split('_')[-1])
+        await ListSkinsHandler.show_page(update, context, page)
