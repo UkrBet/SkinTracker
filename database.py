@@ -1,8 +1,9 @@
 from urllib.parse import urlparse
-
 import psycopg2
-
 from config.config import DATABASE_URL
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_connection():
@@ -10,6 +11,7 @@ def get_connection():
     if not DATABASE_URL:
         raise ValueError("Змінна конфігурації DATABASE_URL не встановлена.")
     parsed_url = urlparse(DATABASE_URL)
+    logger.info(f"Спроба підключення до бази даних: host={parsed_url.hostname}, port={parsed_url.port}, user={parsed_url.username}, database={parsed_url.path[1:]}")
     conn = psycopg2.connect(
         host=parsed_url.hostname,
         port=parsed_url.port,
@@ -17,6 +19,7 @@ def get_connection():
         password=parsed_url.password,
         database=parsed_url.path[1:]
     )
+    logger.info("Підключення до бази даних успішне.")
     return conn
 
 
