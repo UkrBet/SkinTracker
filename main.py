@@ -1,10 +1,11 @@
-import logging
 import inspect
+import logging
 
 from telegram.ext import ApplicationBuilder
 
-from config.config import TELEGRAM_TOKEN_BOT
 import handlers
+from config.config import TELEGRAM_TOKEN_BOT
+from database import create_tables  # Імпортуємо функцію
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -12,6 +13,8 @@ logging.basicConfig(
 )
 
 if __name__ == '__main__':
+    create_tables()  # Явно викликаємо створення таблиць
+
     app = ApplicationBuilder().token(TELEGRAM_TOKEN_BOT).build()
 
     for name, obj in inspect.getmembers(handlers):
